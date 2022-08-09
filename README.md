@@ -1,5 +1,6 @@
  db2-container-wait-action
 ---
+[![action-test](https://github.com/amanoese/db2-container-wait-action/actions/workflows/action-test.yml/badge.svg)](https://github.com/amanoese/db2-container-wait-action/actions/workflows/action-test.yml)
 
 The [ibm/db2](https://hub.docker.com/r/ibmcom/db2) container takes time from setup to database creation.  
 Therefore, you will have to wait to set up the DB, run sql, etc. on Github Action.  
@@ -23,7 +24,7 @@ jobs:
         run: docker run --name mydb2 --privileged=true -e LICENSE=accept -e DBNAME=testdb -dt ibmcom/db2
 
       - name: wait database create
-        uses: amanoese/db2-container-wait-action@master
+        uses: amanoese/db2-container-wait-action@v1
 
       - name: check connect database
         run: docker exec -t mydb2 bash -c "sudo -i -u db2inst1 db2 'connect to testdb'"
@@ -34,7 +35,7 @@ jobs:
 All options are below.
 
 ```
-- uses: amanoese/db2-container-wait-action@master
+- uses: amanoese/db2-container-wait-action@v1
   with:
     # ibmcom/db2 container name
     # if you not specifed. Set the first container name found

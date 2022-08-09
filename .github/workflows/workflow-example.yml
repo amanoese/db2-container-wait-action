@@ -12,7 +12,7 @@ jobs:
         run: docker run --name mydb2 --privileged=true -e LICENSE=accept -e DBNAME=testdb -dt ibmcom/db2
 
       - name: wait database create
-        uses: amanoese/db2-container-wait-action@master
+        uses: amanoese/db2-container-wait-action@v1
 
       - name: check connect database
         run: docker exec -t mydb2 bash -c "sudo -i -u db2inst1 db2 'connect to testdb'"
