@@ -1,0 +1,53 @@
+name: action-test
+on: [push,pull_request]
+
+jobs:
+  db2-simple-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: specifed container name
+        run: |
+          echo "TEST_CONTAINER_NAME=$(openssl rand -hex 16 |head -1)" |\
+          tee -a $GITHUB_ENV
+
+      - run: docker run --name $TEST_CONTAINER_NAME --privileged=true -e LICENSE=accept -e DBNAME=testdb -dt ibmcom/db2
+
+      - uses: ./
+
+      - run: docker exec -t $TEST_CONTAINER_NAME bash -c "sudo -i -u db2inst1 db2 'connect to testdb'"
+
+      - run: docker rm -f $TEST_CONTAINER_NAME
+
+  db2-nodatabase-test:
+    runs-on: ubuntu-latest
+    needs: db2-simple-test
+    steps:
+      - name: specifed container name
+        run: |
+          echo "TEST_CONTAINER_NAME=$(openssl rand -hex 16 |head -1)" |\
+          tee -a $GITHUB_ENV
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - run: docker run --name $TEST_CONTAINER_NAME --privileged=true -e LICENSE=accept -dt ibmcom/db2
+
+      - uses: ./
+        with:
+          CONTEINAR_NAME: ${{ env.TEST_CONTAINER_NAME }}
+
+      - name: check instance
+        run: |
+          docker exec -t $CONTEINAR_NAME bash -c "sudo -i -u db2inst1 db2gcf -s -i db2inst1" && break
+
+      - name: cretate database
+        run: |
+          docker exec -t $TEST_CONTAINER_NAME bash -c \
+          "sudo -i -u db2inst1 db2 'CREATE DATABASE mydb USING CODESET UTF-8 TERRITORY JP COLLATE USING IDENTITY'"
+
+      - name: connect mydb
+        run: docker exec -t $TEST_CONTAINER_NAME bash -c "sudo -i -u db2inst1 db2 'connect to mydb'"
+

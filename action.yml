@@ -1,0 +1,79 @@
+name: 'wait db2 setup'
+escription: 'wait db2 setup'
+inputs:
+  CONTEINAR_NAME:
+    description: 'ibmcom/db2 container name'
+    required: false
+    defalt: ''
+  DB2INSTANCE:
+    description: 'ibmcom/db2 DB2INSTANCE'
+    required: false
+    default: 'db2inst1'
+  DBNAME:
+    description: 'ibmcom/db2'
+    required: false
+    default: ''
+  WAIT_DB2_TIMEOUT:
+    required: false
+    default: '30'
+  WAIT_INSTANCE_TIMEOUT:
+    required: false
+    default: '30'
+  WAIT_CONNECT_TIMEOUT:
+    required: false
+    default: '30'
+
+runs:
+  using: "composite"
+  steps:
+    - name: setup target container
+      shell: bash
+      run: |
+        echo "CONTEINAR_NAME=${CONTEINAR_NAME:-$(docker ps -f ancestor=ibmcom/db2 -q|head -1)}" |\
+        tee -a $GITHUB_ENV
+      env:
+        CONTEINAR_NAME: ${{ inputs.CONTEINAR_NAME }}
+
+    - name: wait setup db2 command
+      shell: bash
+      run: |
+        for t in {0..${{ inputs.WAIT_DB2_TIMEOUT}}}; do
+          docker exec -t $CONTEINAR_NAME bash -c "sudo -i -u ${{ inputs.DB2INSTANCE }} which db2" && break
+          sleep 1
+        done;
+        echo setuped db2 command
+
+    - name: wait setup db2 instance
+      shell: bash
+      run: |
+        echo check status ${{ inputs.DB2INSTANCE }}
+        for t in {0..${{ inputs.WAIT_INSTANCE_TIMEOUT}}}; do
+          docker exec -t $CONTEINAR_NAME bash -c "sudo -i -u ${{ inputs.DB2INSTANCE }} db2gcf -s -i ${{ inputs.DB2INSTANCE }}" && break
+          sleep 1
+        done;
+        sleep 3 ## wait for bug
+        echo checked status ${{ env.DB2INSTANCE }}
+
+    - name: setup target DBNAME
+      if: ${{ inputs.DBNAME == '' }}
+      shell: bash
+      run: |
+        set +o pipefail
+        docker exec -t $CONTEINAR_NAME bash -c 'sudo -i -u ${{ inputs.DB2INSTANCE }} db2 "list db directory"' | \
+        grep "Database name"|\
+        awk '$0=$NF'|\
+        xargs -I@ echo "DBNAME=${DBNAME:-@}"|\
+        tee -a $GITHUB_ENV
+      env:
+        DBNAME: ${{ inputs.DBNAME }}
+
+    - name: wait connected database
+      if: ${{ env.DBNAME != '' }}
+      shell: bash
+      run: |
+        echo connect $DBNAME
+        for t in {0..${{ inputs.WAIT_CONNECT_TIMEOUT}}}; do
+          docker exec -t $CONTEINAR_NAME bash -c "sudo -i -u ${{ inputs.DB2INSTANCE }} db2 'connect to $DBNAME'" && break
+          sleep 1
+        done;
+        echo connected $DBNAME
